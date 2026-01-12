@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <chrono>
 
+
 namespace fs = std::filesystem;
 
 Consumer::Consumer(int id, ThreadedSafeQueue& queue)
@@ -42,7 +43,7 @@ void Consumer::waitForCompletion() {
 void Consumer::run() {
     std::cout << "[Consumer " << id_ << "] Thread running\n";
 
-    while (running_) {
+    while (running_.load()) {
         Task task;
 
         // Получаем задачу из очереди
@@ -71,7 +72,7 @@ void Consumer::run() {
         }
     }
 
-    running_ = false;
+    running_.exchange(false);
     std::cout << "[Consumer " << id_ << "] Finished (" << processed_ << " tasks)\n";
 }
 
@@ -97,19 +98,27 @@ void Consumer::invertImage(cv::Mat& image) {
 }
 
 bool Consumer::processTask(const Task& task) {
+    if (!running_.load(std::memory_order_acquire)) {
+        return false;
+    }
+
     try {
         cv::Mat image = cv::imread(task.inputPath, cv::IMREAD_COLOR);
         if (image.empty()) {
-            throw std::runtime_error("Cannot load image");
+            throw std::runtime_error("Cannot load image" + task.inputPath);
         }
 
         invertImage(image);
 
-        if (task.outputPath.empty()) {
-            throw std::runtime_error("Empty output path");
+        fs::path outputPathObj(task.outputPath);
+        if (!outputPathObj.parent_path().empty()) {
+            fs::create_directories(outputPathObj.parent_path());
         }
 
-        fs::create_directories(fs::path(task.outputPath).parent_path());
+        std::vector<int> compression_params;
+        if (outputPathObj.extension() == ".jpg" || outputPathObj.extension() == ".jpeg") {
+            compression_params = {cv::IMWRITE_JPEG_QUALITY, 95};
+        }
 
         if (!cv::imwrite(task.outputPath, image)) {
             throw std::runtime_error("Failed to save");
