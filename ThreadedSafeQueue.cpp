@@ -22,16 +22,20 @@ bool ThreadedSafeQueue::pop(Task& task) {
     std::unique_lock<std::mutex> lock(mutex);
     
     condition.wait(lock, [this]() { 
-        return !queue.empty() || (remainingProducers == 0 && stopFlag); 
+        return !queue.empty() || remainingProducers <= 0; 
     });
     
-    if (queue.empty() && remainingProducers == 0) {
+    if (queue.empty()) {
         return false;
     }
-    
+
     task = queue.front();
     queue.pop();
     
+    if (task.isPoisonPill()) {
+        return true;
+    }
+
     std::cout << "[Queue] Task taken: " << task.inputPath 
               << " (queue size: " << queue.size() << ")\n";
     
