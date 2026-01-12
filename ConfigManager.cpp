@@ -8,7 +8,8 @@ ConfigManager::ConfigManager()
 }
 
 bool ConfigManager::loadFromCommandLine(int argc, char* argv[]) {
-    if (argc < 3) {
+    if (argc < 3 || !argv[1] || !argv[2] || 
+        std::string(argv[1]).empty() || std::string(argv[2]).empty()) {
         std::cerr << "Error: Not enough arguments\n";
         printUsage(argv[0]);
         return false;
