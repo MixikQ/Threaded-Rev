@@ -43,8 +43,9 @@ int main(int argc, char* argv[]) {
         std::cout << "[Main] Starting all components...\n";
         producer.start();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
+        auto start = std::chrono::high_resolution_clock::now();
         for (auto& consumer : consumers) {
             consumer->start();
         }
@@ -99,6 +100,11 @@ int main(int argc, char* argv[]) {
         }
         
         std::cout << "\n=== PROCESSING COMPLETE ===\n";
+
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+        std::cout << "[Main] Time elapsed for processing: " << duration.count() << "ms" << std::endl;
         
         size_t totalProcessed = 0;
         for (const auto& consumer : consumers) {
